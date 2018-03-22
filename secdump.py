@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# pandump - A utility to dump PAN-OS rulebases into comma-delimited output
+# secdump - A utility to dump PAN-OS security rulebases into comma-delimited output
 
 __author__ = "Robert Hagen (@stealthllama)"
 __copyright__ = "Copyright 2018, Palo Alto Networks"
