@@ -48,9 +48,19 @@ def get_local_tree(thisconn):
 def get_shared_tree(thisconn):
     thisconn.op(cmd="<show><config><pushed-shared-policy></pushed-shared-policy></config></show>")
     tree = eT.fromstring(thisconn.xml_result())
-    prerules = tree.find('panorama/pre-rulebase/security/rules')
-    postrules = tree.find('panorama/post-rulebase/security/rules')
-    return prerules, postrules
+    if tree is not unicode:
+        prerules = tree.find('panorama/pre-rulebase/security/rules')
+        postrules = tree.find('panorama/post-rulebase/security/rules')
+        return prerules, postrules
+    else:
+        return tree
+
+
+def get_predefined_tree(thisconn):
+    rulebase_xpath = "/config/predefined/default-security-rules"
+    thisconn.get(xpath=rulebase_xpath)
+    tree = eT.fromstring(thisconn.xml_result())
+    return tree
 
 
 def write_security_header(thisfile):
@@ -176,31 +186,60 @@ def write_security_rule(rule, f, rulecount, t):
     f.write(status + t + ',')
 
     # Write the from_zone members
-    f.write(status + format_members(from_zone) + ',')
+    if t != 'default':
+        f.write(status + format_members(from_zone) + ',')
+    else:
+        f.write(status + 'any' + ',')
 
     # Write the source members
-    f.write(status + format_members(source) + ',')
+    if t != 'default':
+        f.write(status + format_members(source) + ',')
+    else:
+        f.write(status + 'any' + ',')
 
     # Write the user members
-    f.write(status + format_members(user) + ',')
+    if t != 'default':
+        f.write(status + format_members(user) + ',')
+    else:
+        f.write(status + 'any' + ',')
 
     # Write the HIP profile members
-    f.write(status + format_members(hip) + ',')
+    if t != 'default':
+        f.write(status + format_members(hip) + ',')
+    else:
+        f.write(status + 'any' + ',')
 
     # Write the to_zone members
-    f.write(status + format_members(to_zone) + ',')
+    if t != 'default':
+        f.write(status + format_members(to_zone) + ',')
+    elif rule_name == 'intrazone-default':
+        f.write(status + '(intrazone)' + ',')
+    else:
+        f.write(status + 'any' + ',')
 
     # Write the destination members
-    f.write(status + format_members(destination) + ',')
+    if t != 'default':
+        f.write(status + format_members(destination) + ',')
+    else:
+        f.write(status + 'any' + ',')
 
     # Write the application members
-    f.write(status + format_members(application) + ',')
+    if t != 'default':
+        f.write(status + format_members(application) + ',')
+    else:
+        f.write(status + 'any' + ',')
 
     # Write the service members
-    f.write(status + format_members(service) + ',')
+    if t != 'default':
+        f.write(status + format_members(service) + ',')
+    else:
+        f.write(status + 'any' + ',')
 
     # Write the category members
-    f.write(status + format_members(category) + ',')
+    if t != 'default':
+        f.write(status + format_members(category) + ',')
+    else:
+        f.write(status + 'any' + ',')
 
     # Write the action
     f.write(status + action.text + ',')
@@ -267,7 +306,10 @@ def main():
     localtree = get_local_tree(myconn)
 
     # Grab the shared rulebase XML tree
-    #sharedtree = get_shared_tree(myconn)
+    sharedtree = get_shared_tree(myconn)
+
+    # Grab the predfined rulebase XML tree
+    predefinedtree = get_predefined_tree(myconn)
 
     # Write the HTML table
     write_security_header(outfile)
@@ -277,18 +319,31 @@ def main():
     count = 1
     rule_type = ''
 
-    #for prerule in sharedtree[0].iter('entry'):
-    #    write_security_rule(prerule, outfile, count, rule_type)
-    #    count += 1
+    # Process the pre-rules rules
+    if sharedtree is not None and sharedtree[0]:
+        for prerule in sharedtree[0].iter('entry'):
+            rule_type='pre'
+            write_security_rule(prerule, outfile, count, rule_type)
+            count += 1
 
+    # Process the local security rules
     for rule in localtree.iter('entry'):
         rule_type='local'
         write_security_rule(rule, outfile, count, rule_type)
         count += 1
 
-    #for postrule in sharedtree[1].iter('entry'):
-    #    write_security_rule(postrule, outfile, count, rule_type)
-    #    count += 1
+    # Process the post-rules
+    if sharedtree is not None and sharedtree[1]:
+        for postrule in sharedtree[1].iter('entry'):
+            rule_type='post'
+            write_security_rule(postrule, outfile, count, rule_type)
+            count += 1
+
+    # Process the predefined rules
+    for predefinedrule in predefinedtree.iter('entry'):
+        rule_type='default'
+        write_security_rule(predefinedrule, outfile, count, rule_type)
+        count += 1
 
     # Close the output file
     if outfile is not sys.stdout:
