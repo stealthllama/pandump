@@ -62,22 +62,10 @@ def get_shared_tree(thisconn):
 
 
 def write_nat_header(thisfile):
-    thisfile.write(',\
-                    Name,\
-                    Tags,\
-                    Original Packet Source Zone,\
-                    Original Packet Destination Zone,\
-                    Original Packet Destination Interface,\
-                    Original Packet Source Address,\
-                    Original Packet Destination Address,\
-                    Original Packet Service,\
-                    Translated Packet Source Translation,\
-                    Translated Packet Destination Translation,\
-                    Destination Address\n'
-                   )
+    thisfile.write(',Name,Tags,Original Packet Source Zone,Original Packet Destination Zone,Original Packet Destination Interface,Original Packet Source Address,Original Packet Destination Address,Original Packet Service,Translated Packet Source Translation,Translated Packet Destination Translation,Destination Address\n')
 
 
-def write_nat_rule(rule, f, rulecount, t):
+def write_nat_rule(rule, f, rulecount):
     #
     # Process the rule
     #
@@ -107,6 +95,9 @@ def write_nat_rule(rule, f, rulecount, t):
     for to_iter in rule.iterfind('to/member'):
         to_zone.append(to_iter.text)
 
+    # Get the destination interface
+    to_interface = rule.get('to-interface')
+
     # Get the source address members
     source = []
     for source_iter in rule.iterfind('source/member'):
@@ -123,21 +114,35 @@ def write_nat_rule(rule, f, rulecount, t):
         service.append(service_iter.text)
 
     # Process the NAT type and elements
-    src_xlate is None
-    dst_xlate is None
-    if rule.find('source-translation'):
-        # Do something
+    src_xlate = []
+    dst_xlate = []
 
-    if rule.find('destination-translation'):
-        dst_xlate_type = 'destination-translation'
-        dst_xlate_addr = rule.find('translated-address')
-        dst_xlate_port = rule.find('translated-port')
-        dst_xlate = [dst_xlate_type, dst_xlate_addr, dst_xlate_port]
-    elif rule.find('dynamic-destination-translation'):
-        # Do something else
-        dst_xlate_type = 'dynamic-destination-translation'
-        dst_xlate_addr = rule.find('translated-address')
-        dst_xlate_port = rule.find('translated-port')
+    src_elem = rule.find('source-translation')
+    if src_elem is not None:
+        if src_elem.find('dynamic-ip-and-port'):
+            src_xlate_type = 'dynamic-ip-and-port'
+            if src_elem.find('interface-address')
+                src_xlate_interface = rule.find('interface')
+                src_xlate_address = rule.find('ip')
+            if src_elem.find('translated-address'):
+                src_xlate_members = []
+                for x in src_elem.iterfind('translated-address/member'):
+                    src_xlate_members.append(x.text)
+        if src_elem.find('dynamic-ip'):
+            for x in src_elem.iterfind('translated-address/member'):
+                src_xlate_members.append(x.text)
+        if src_elem.find('static-ip'):
+            src_xlate_members = src_elem.find('translated-address')
+            src_xlate_bidirectional = src_elem('bi-directional')
+
+    dst_elem = rule.fine('destination-translation')
+    if dst_elem is not None:
+        if dst_elem.find('dynamic-destination-translation'):
+            dst_xlate_type = 'dynamic-destination-translation'
+        else:
+            dst_xlate_type = 'destination-translation'
+        dst_xlate_addr = dst_elem.find('translated-address')
+        dst_xlate_port = dst_elem.find('translated-port')
         dst_xlate = [dst_xlate_type, dst_xlate_addr, dst_xlate_port]
 
     # Get the description
@@ -159,46 +164,42 @@ def write_nat_rule(rule, f, rulecount, t):
     else:
         f.write(status + format_members(tag) + ',')
 
-    # Write the rule type
-    f.write(status + t + ',')
-
     # Write the from_zone members
-    if t != 'default':
+    if len(from_zone) > 0:
         f.write(status + format_members(from_zone) + ',')
     else:
         f.write(status + 'any' + ',')
 
+    # Write the to_zone members
+    if len(to_zone) > 0:
+        f.write(status + format_members(to_zone) + ',')
+    else:
+        f.write(status + 'any' + ',')
+
+    # Write the destination interface
+    if to_interface:
+        f.write(status + format_members(to_interface) + ',')
+    else:
+        f.write(status + 'any' + ',')
+
     # Write the source members
-    if t != 'default':
+    if len(source) > 0:
         f.write(status + format_members(source) + ',')
     else:
         f.write(status + 'any' + ',')
 
-    # Write the user members
-    if t != 'default':
-        f.write(status + format_members(user) + ',')
-    else:
-        f.write(status + 'any' + ',')
-
-    # Write the HIP profile members
-    if t != 'default':
-        f.write(status + format_members(hip) + ',')
-    else:
-        f.write(status + 'any' + ',')
-
-    # Write the to_zone members
-    if t != 'default':
-        f.write(status + format_members(to_zone) + ',')
-    elif rule_name == 'intrazone-default':
-        f.write(status + '(intrazone)' + ',')
-    else:
-        f.write(status + 'any' + ',')
-
     # Write the destination members
-    if t != 'default':
+    if len(destination) > 0:
         f.write(status + format_members(destination) + ',')
     else:
         f.write(status + 'any' + ',')
+
+    # Write the service members
+    if len(service) > 0:
+        f.write(status + format_members(service) + ',')
+    else:
+        f.write(status + 'any' + ',')
+
 
     # Write the application members
     if t != 'default':
@@ -212,44 +213,8 @@ def write_nat_rule(rule, f, rulecount, t):
     else:
         f.write(status + 'any' + ',')
 
-    # Write the category members
-    if t != 'default':
-        f.write(status + format_members(category) + ',')
-    else:
-        f.write(status + 'any' + ',')
 
-    # Write the action
-    f.write(status + action.text + ',')
 
-    # Write the profile or group
-    if rule.find('profile-setting/group'):
-        f.write(status + profile_group.text)
-    elif rule.find('profile-setting/profiles'):
-        profile_list = []
-        if av_profile is not None:
-            profile_list.append('Antivirus: ' + av_profile.text)
-        if vuln_profile is not None:
-            profile_list.append('Anti-Spyware: ' + vuln_profile.text)
-        if spyware_profile is not None:
-            profile_list.append('Vulnerability Protection: ' + spyware_profile.text)
-        if url_profile is not None:
-            profile_list.append('URL Filtering: ' + url_profile.text)
-        if data_profile is not None:
-            profile_list.append('Data Filtering: ' + data_profile.text)
-        if file_profile is not None:
-            profile_list.append('File Blocking: ' + file_profile.text)
-        if wildfire_profile is not None:
-            profile_list.append('WildFire Analysis: ' + wildfire_profile.text)
-        f.write(status + format_members(profile_list))
-    else:
-        f.write('none')
-    f.write(',')
-
-    # Write the log forwarding profile (if defined)
-    if log_setting is None:
-        f.write(status + 'none,')
-    else:
-        f.write(status + log_setting.text + ',')
 
     # Write the description (if defined)
     if description is None:
