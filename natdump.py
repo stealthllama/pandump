@@ -121,7 +121,7 @@ def write_nat_rule(rule, f, rulecount):
     if src_elem is not None:
         if src_elem.find('dynamic-ip-and-port'):
             src_xlate_type = 'dynamic-ip-and-port'
-            if src_elem.find('interface-address')
+            if src_elem.find('interface-address'):
                 src_xlate_interface = rule.find('interface')
                 src_xlate_address = rule.find('ip')
             if src_elem.find('translated-address'):
@@ -133,9 +133,9 @@ def write_nat_rule(rule, f, rulecount):
                 src_xlate_members.append(x.text)
         if src_elem.find('static-ip'):
             src_xlate_members = src_elem.find('translated-address')
-            src_xlate_bidirectional = src_elem('bi-directional')
+            src_xlate_bidirectional = src_elem.find('bi-directional')
 
-    dst_elem = rule.fine('destination-translation')
+    dst_elem = rule.find('destination-translation')
     if dst_elem is not None:
         if dst_elem.find('dynamic-destination-translation'):
             dst_xlate_type = 'dynamic-destination-translation'
@@ -201,17 +201,6 @@ def write_nat_rule(rule, f, rulecount):
         f.write(status + 'any' + ',')
 
 
-    # Write the application members
-    if t != 'default':
-        f.write(status + format_members(application) + ',')
-    else:
-        f.write(status + 'any' + ',')
-
-    # Write the service members
-    if t != 'default':
-        f.write(status + format_members(service) + ',')
-    else:
-        f.write(status + 'any' + ',')
 
 
 
@@ -261,20 +250,20 @@ def main():
     if sharedtree is not None and sharedtree[0]:
         for prerule in sharedtree[0].iter('entry'):
             rule_type='pre'
-            write_nat_rule(prerule, outfile, count, rule_type)
+            write_nat_rule(prerule, outfile, count)
             count += 1
 
     # Process the local security rules
     for rule in localtree.iter('entry'):
         rule_type='local'
-        write_nat_rule(rule, outfile, count, rule_type)
+        write_nat_rule(rule, outfile, count)
         count += 1
 
     # Process the post-rules
     if sharedtree is not None and sharedtree[1]:
         for postrule in sharedtree[1].iter('entry'):
             rule_type='post'
-            write_nat_rule(postrule, outfile, count, rule_type)
+            write_nat_rule(postrule, outfile, count)
             count += 1
 
     # Close the output file
