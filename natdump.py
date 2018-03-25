@@ -62,7 +62,7 @@ def get_shared_tree(thisconn):
 
 
 def write_nat_header(thisfile):
-    thisfile.write(',Name,Tags,Original Packet Source Zone,Original Packet Destination Zone,Original Packet Destination Interface,Original Packet Source Address,Original Packet Destination Address,Original Packet Service,Translated Packet Source Translation,Translated Packet Destination Translation,Destination Address\n')
+    thisfile.write(',Name,Tags,Original Packet Source Zone,Original Packet Destination Zone,Original Packet Destination Interface,Original Packet Source Address,Original Packet Destination Address,Original Packet Service,Translated Packet Source Translation,Translated Packet Destination Translation, Description\n')
 
 
 def write_nat_rule(rule, f, rulecount):
@@ -135,12 +135,16 @@ def write_nat_rule(rule, f, rulecount):
             src_xlate_members = src_elem.find('translated-address')
             src_xlate_bidirectional = src_elem.find('bi-directional')
 
+    dst_elem = rule.find('dynamic-destination-translation')
+    if dst_elem is not None:
+        dst_xlate_type = 'dynamic-destination-translation'
+        dst_xlate_addr = dst_elem.find('translated-address')
+        dst_xlate_port = dst_elem.find('translated-port')
+        dst_xlate = [dst_xlate_type, dst_xlate_addr, dst_xlate_port]
+
     dst_elem = rule.find('destination-translation')
     if dst_elem is not None:
-        if dst_elem.find('dynamic-destination-translation'):
-            dst_xlate_type = 'dynamic-destination-translation'
-        else:
-            dst_xlate_type = 'destination-translation'
+        dst_xlate_type = 'destination-translation'
         dst_xlate_addr = dst_elem.find('translated-address')
         dst_xlate_port = dst_elem.find('translated-port')
         dst_xlate = [dst_xlate_type, dst_xlate_addr, dst_xlate_port]
@@ -200,14 +204,27 @@ def write_nat_rule(rule, f, rulecount):
     else:
         f.write(status + 'any' + ',')
 
+    # Write the NAT actions
+    # Placeholder for source NAT
+    if len(src_xlate) > 0:
+        f.write(status + src_xlate[0])
+    else:
+        f.write('none')
+    f.write(',')
 
-
-
-
-
+    # Destination NAT
+    if len(dst_xlate) > 0:
+        f.write(status + dst_xlate[0])
+        f.write(';address: ' + dst_xlate[1].text)
+        if dst_xlate[2] is not None:
+            f.write(';port: ' + dst_xlate[2].text)
+    else:
+        f.write('none')
+    f.write(',')
+ 
     # Write the description (if defined)
     if description is None:
-        f.write(status + 'none,')
+        f.write(status + 'none')
     else:
         f.write(status + description.text)
 
