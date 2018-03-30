@@ -96,7 +96,7 @@ def write_nat_rule(rule, f, rulecount):
         to_zone.append(to_iter.text)
 
     # Get the destination interface
-    to_interface = rule.get('to-interface')
+    to_interface = rule.find('to-interface')
 
     # Get the source address members
     source = []
@@ -109,9 +109,7 @@ def write_nat_rule(rule, f, rulecount):
         destination.append(dest_iter.text)
 
     # Get the service members
-    service = []
-    for service_iter in rule.iterfind('service/member'):
-        service.append(service_iter.text)
+    service = rule.find('service')
 
     # Process the NAT type and elements
     src_xlate = []
@@ -121,19 +119,30 @@ def write_nat_rule(rule, f, rulecount):
     if src_elem is not None:
         if src_elem.find('dynamic-ip-and-port'):
             src_xlate_type = 'dynamic-ip-and-port'
-            if src_elem.find('interface-address'):
-                src_xlate_interface = rule.find('interface')
-                src_xlate_address = rule.find('ip')
-            if src_elem.find('translated-address'):
+            if src_elem.find('dynamic-ip-and-port/interface-address'):
+                src_xlate_subtype = 'interface-address'
+                src_xlate_interface = src_elem.find('dynamic-ip-and-port/interface-address/interface')
+                src_xlate_address = src_elem.find('dynamic-ip-and-port/interface-address/ip')
+                src_xlate = [src_xlate_type, src_xlate_subtype, src_xlate_interface, src_xlate_address]
+            if src_elem.find('dynamic-ip-and-port/translated-address'):
+                src_xlate_subtype = 'translated-address'
                 src_xlate_members = []
-                for x in src_elem.iterfind('translated-address/member'):
+                for x in src_elem.iterfind('dynamic-ip-and-port/translated-address/member'):
                     src_xlate_members.append(x.text)
+                src_xlate = [src_xlate_type, src_xlate_subtype, src_xlate_members]
         if src_elem.find('dynamic-ip'):
-            for x in src_elem.iterfind('translated-address/member'):
+            src_xlate_type = 'dynamic-ip'
+            src_xlate_subtype = ''
+            src_xlate_members = []
+            for x in src_elem.iterfind('dynamic-ip/translated-address/member'):
                 src_xlate_members.append(x.text)
+            src_xlate = [src_xlate_type, src_xlate_subtype, src_xlate_members]
         if src_elem.find('static-ip'):
-            src_xlate_members = src_elem.find('translated-address')
-            src_xlate_bidirectional = src_elem.find('bi-directional')
+            src_xlate_type = 'static-ip'
+            src_xlate_subtype = ''
+            src_xlate_members = src_elem.find('static-ip/translated-address')
+            src_xlate_bidirectional = src_elem.find('static-ip/bi-directional')
+            src_xlate = [src_xlate_type, src_xlate_subtype, src_xlate_members, src_xlate_bidirectional]
 
     dst_elem = rule.find('dynamic-destination-translation')
     if dst_elem is not None:
@@ -181,8 +190,8 @@ def write_nat_rule(rule, f, rulecount):
         f.write(status + 'any' + ',')
 
     # Write the destination interface
-    if to_interface:
-        f.write(status + format_members(to_interface) + ',')
+    if to_interface is not None:
+        f.write(status + to_interface.text + ',')
     else:
         f.write(status + 'any' + ',')
 
@@ -199,25 +208,35 @@ def write_nat_rule(rule, f, rulecount):
         f.write(status + 'any' + ',')
 
     # Write the service members
-    if len(service) > 0:
-        f.write(status + format_members(service) + ',')
+    if service is not None:
+        f.write(status + service.text + ',')
     else:
         f.write(status + 'any' + ',')
 
-    # Write the NAT actions
-    # Placeholder for source NAT
+    # Write the source NAT action
     if len(src_xlate) > 0:
         f.write(status + src_xlate[0])
+        if src_xlate[0] == 'dynamic-ip-and-port' and src_xlate[1] == 'interface-address':
+            f.write(';' + src_xlate[2].text)
+            if src_xlate[3] is not None:
+                f.write(';' + src_xlate[3].text)
+        elif src_xlate[0] == 'dynamic-ip-and-port' and src_xlate[1] == 'translated-address':
+            f.write(';' + format_members(src_xlate[2]))
+        elif src_xlate[0] == 'dynamic-ip':
+            f.write(';' + format_members(src_xlate[2]))
+        elif src_xlate[0] == 'static-ip':
+            f.write(';' + src_xlate[2].text)
+            f.write(';bi-directional:' + src_xlate[3].text)
     else:
         f.write('none')
     f.write(',')
 
-    # Destination NAT
+    # Write the destination NAT action
     if len(dst_xlate) > 0:
         f.write(status + dst_xlate[0])
-        f.write(';address: ' + dst_xlate[1].text)
+        f.write(';address:' + dst_xlate[1].text)
         if dst_xlate[2] is not None:
-            f.write(';port: ' + dst_xlate[2].text)
+            f.write(';port:' + dst_xlate[2].text)
     else:
         f.write('none')
     f.write(',')
