@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# natdump - A utility to dump PAN-OS NAT rulebases into comma-delimited output
+# devdump - A utility to dump PAN-OS devices from Panorama into comma-delimited output
 
 __author__ = "Robert Hagen (@stealthllama)"
 __copyright__ = "Copyright 2018, Palo Alto Networks"
@@ -33,7 +33,7 @@ def make_parser():
     parser = argparse.ArgumentParser(description="Export security rules from a Palo Alto Networks firewall")
     parser.add_argument("-u", "--username", help="administrator username")
     parser.add_argument("-p", "--password", help="administrator password", default='')
-    parser.add_argument("-f", "--firewall", help="firewall address")
+    parser.add_argument("-m", "--panorama", help="Panorama address")
     parser.add_argument("-t", "--tag", help="firewall tag from the .panrc file", default='')
     parser.add_argument("-o", "--outfile", help="output file", default='')
     args = parser.parse_args()
@@ -42,32 +42,19 @@ def make_parser():
     return args
 
 
-def get_local_tree(thisconn):
-    rulebase_xpath = \
-        "/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']/rulebase/nat/rules"
-    thisconn.get(xpath=rulebase_xpath)
+def get_dev_tree(thisconn):
+    thisconn.op(cmd="<show><devices><all></all></devices></show>")
     tree = eT.fromstring(thisconn.xml_result())
     return tree
 
 
-def get_shared_tree(thisconn):
-    thisconn.op(cmd="<show><config><pushed-shared-policy></pushed-shared-policy></config></show>")
-    tree = eT.fromstring(thisconn.xml_result())
-    if tree is not unicode:
-        prerules = tree.find('panorama/pre-rulebase/nat/rules')
-        postrules = tree.find('panorama/post-rulebase/nat/rules')
-        return prerules, postrules
-    else:
-        return tree
+def write_dev_header(thisfile):
+    thisfile.write(',Serial,Connected,Unsupported Version Deactivated,Hostname,IP Address,MAC Address,Uptime,Family,Model,SW Version,Description\n')
 
 
-def write_nat_header(thisfile):
-    thisfile.write(',Name,Tags,Original Packet Source Zone,Original Packet Destination Zone,Original Packet Destination Interface,Original Packet Source Address,Original Packet Destination Address,Original Packet Service,Translated Packet Source Translation,Translated Packet Destination Translation,Description\n')
-
-
-def write_nat_rule(rule, f, rulecount):
+def write_dev_info(devcount, dev, f):
     #
-    # Process the rule
+    # Process the device
     #
 
     # Is the rule disabled?
@@ -168,84 +155,7 @@ def write_nat_rule(rule, f, rulecount):
     # Write the rule count
     f.write(str(rulecount) + ',')
 
-    # Write the rule name
-    f.write(status + rule_name + ',')
-
-    # Write the tag members (if defined)
-    if len(tag) == 0:
-        f.write(status + 'none,')
-    else:
-        f.write(status + format_members(tag) + ',')
-
-    # Write the from_zone members
-    if len(from_zone) > 0:
-        f.write(status + format_members(from_zone) + ',')
-    else:
-        f.write(status + 'any' + ',')
-
-    # Write the to_zone members
-    if len(to_zone) > 0:
-        f.write(status + format_members(to_zone) + ',')
-    else:
-        f.write(status + 'any' + ',')
-
-    # Write the destination interface
-    if to_interface is not None:
-        f.write(status + to_interface.text + ',')
-    else:
-        f.write(status + 'any' + ',')
-
-    # Write the source members
-    if len(source) > 0:
-        f.write(status + format_members(source) + ',')
-    else:
-        f.write(status + 'any' + ',')
-
-    # Write the destination members
-    if len(destination) > 0:
-        f.write(status + format_members(destination) + ',')
-    else:
-        f.write(status + 'any' + ',')
-
-    # Write the service members
-    if service is not None:
-        f.write(status + service.text + ',')
-    else:
-        f.write(status + 'any' + ',')
-
-    # Write the source NAT action
-    if len(src_xlate) > 0:
-        f.write(status + src_xlate[0])
-        if src_xlate[0] == 'dynamic-ip-and-port' and src_xlate[1] == 'interface-address':
-            f.write(';' + src_xlate[2].text)
-            if src_xlate[3] is not None:
-                f.write(';' + src_xlate[3].text)
-        elif src_xlate[0] == 'dynamic-ip-and-port' and src_xlate[1] == 'translated-address':
-            f.write(';' + format_members(src_xlate[2]))
-        elif src_xlate[0] == 'dynamic-ip':
-            f.write(';' + format_members(src_xlate[2]))
-        elif src_xlate[0] == 'static-ip':
-            f.write(';' + src_xlate[2].text)
-            f.write(';bi-directional:' + src_xlate[3].text)
-    else:
-        f.write('none')
-    f.write(',')
-
-    # Write the destination NAT action
-    if len(dst_xlate) > 0:
-        f.write(status + dst_xlate[0])
-        f.write(';address:' + dst_xlate[1].text)
-        if dst_xlate[2] is not None:
-            f.write(';port:' + dst_xlate[2].text)
-    else:
-        f.write('none')
-    f.write(',')
- 
-    # Write the description (if defined)
-    if description is None:
-        f.write(status + 'none')
-    else:
-        f.write(status + description.text)
+    # Write magic here
 
     # Finish it!
     f.write('\n')
@@ -261,7 +171,7 @@ def main():
         myconn = PanXapi(tag=myargs.tag)
     else:
         # Generate the API key
-        myconn = PanXapi(api_username=myargs.username, api_password=myargs.password, hostname=myargs.firewall)
+        myconn = PanXapi(api_username=myargs.username, api_password=myargs.password, hostname=myargs.panorama)
 
     # Open the output file
     if myargs.outfile:
@@ -269,38 +179,19 @@ def main():
     else:
         outfile = sys.stdout
 
-    # Grab the local rulebase XML tree
-    localtree = get_local_tree(myconn)
-
-    # Grab the shared rulebase XML tree
-    sharedtree = get_shared_tree(myconn)
+    # Grab the device XML tree
+    devices = get_dev_tree(myconn)
 
     # Write the HTML table
-    write_nat_header(outfile)
+    write_dev_header(outfile)
 
-    # Process all the NAT rules
-
+    # Process all the devices
     count = 1
 
-    # Process the pre-rules rules
-    if sharedtree is not None and sharedtree[0]:
-        for prerule in sharedtree[0].iter('entry'):
-            rule_type='pre'
-            write_nat_rule(prerule, outfile, count)
-            count += 1
+    for dev in devices.iter('entry'):
 
-    # Process the local security rules
-    for rule in localtree.iter('entry'):
-        rule_type='local'
-        write_nat_rule(rule, outfile, count)
+        write_nat_rule(count, dev, outfile)
         count += 1
-
-    # Process the post-rules
-    if sharedtree is not None and sharedtree[1]:
-        for postrule in sharedtree[1].iter('entry'):
-            rule_type='post'
-            write_nat_rule(postrule, outfile, count)
-            count += 1
 
     # Close the output file
     if outfile is not sys.stdout:
