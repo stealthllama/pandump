@@ -30,7 +30,7 @@ def format_members(thislist):
 
 def make_parser():
     # Parse the arguments
-    parser = argparse.ArgumentParser(description="Export security rules from a Palo Alto Networks firewall")
+    parser = argparse.ArgumentParser(description="Export managed devices from Panorama")
     parser.add_argument("-u", "--username", help="administrator username")
     parser.add_argument("-p", "--password", help="administrator password", default='')
     parser.add_argument("-m", "--panorama", help="Panorama address")
@@ -62,7 +62,7 @@ def write_dev_info(devcount, dev, f):
 
     # Get the vsys
     dev_vsys = []
-    for vsys_iter in dev.iter('vsys/entry'):
+    for vsys_iter in dev.iterfind('vsys/entry'):
         dev_vsys.append(vsys_iter.get('name'))
 
     # Get the model
