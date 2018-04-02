@@ -49,7 +49,7 @@ def get_dev_tree(thisconn):
 
 
 def write_dev_header(thisfile):
-    thisfile.write(',Serial,Connected,Unsupported Version Deactivated,Hostname,IP Address,MAC Address,Uptime,Family,Model,SW Version,Description\n')
+    thisfile.write(',Device Name,Virtual System,Model,Tags,Serial Number,Operational Mode,IP Address,Variables,Template,Status Device State,Status HA Status,Status Shared Policy,Status Template,Status Certificate,Status Last Commit State,Software Version,Apps and Threat,Antivirus,URL Filtering,GlobalProtect Client,WildFire\n')
 
 
 def write_dev_info(devcount, dev, f):
@@ -57,108 +57,207 @@ def write_dev_info(devcount, dev, f):
     # Process the device
     #
 
-    # Is the rule disabled?
-    rule_state = rule.find('disabled')
-    if rule_state is None:
-        status = ''
-    else:
-        status = '[Disabled] '
+    # Get the device name
+    dev_name = dev.find('hostname')
 
-    # Get the rule name
-    rule_name = rule.get('name')
+    # Get the vsys
+    dev_vsys = []
+    for vsys_iter in dev.iter('vsys/entry'):
+        dev_vsys.append(vsys_iter.get('name'))
+
+    # Get the model
+    dev_model = dev.find('model')
 
     # Get the tag members
-    tag = []
-    for tag_iter in rule.iterfind('tag/member'):
-        tag.append(tag_iter.text)
+    dev_tags = []
+    for tag_iter in dev.iterfind('tag/member'):
+        dev_tags.append(tag_iter.text)
 
-    # Get the from_zone members
-    from_zone = []
-    for from_iter in rule.iterfind('from/member'):
-        from_zone.append(from_iter.text)
+    # Get the serial number
+    dev_serial = dev.find('serial')
 
-    # Get the to_zone members
-    to_zone = []
-    for to_iter in rule.iterfind('to/member'):
-        to_zone.append(to_iter.text)
+    # Get the operational mode
+    dev_mode = dev.find('operational-mode')
 
-    # Get the destination interface
-    to_interface = rule.find('to-interface')
+    # Get the IP address
+    dev_ip = dev.find('ip-address')
 
-    # Get the source address members
-    source = []
-    for source_iter in rule.iterfind('source/member'):
-        source.append(source_iter.text)
+    # Get the variables
+    dev_vars = None
 
-    # Get the destination address members
-    destination = []
-    for dest_iter in rule.iterfind('destination/member'):
-        destination.append(dest_iter.text)
+    # Get the template
+    dev_template = dev.find('template')
 
-    # Get the service members
-    service = rule.find('service')
+    # Get the device state
+    dev_state = dev.find('connected')
 
-    # Process the NAT type and elements
-    src_xlate = []
-    dst_xlate = []
+    # Get the device HA status
+    dev_ha = None
 
-    src_elem = rule.find('source-translation')
-    if src_elem is not None:
-        if src_elem.find('dynamic-ip-and-port'):
-            src_xlate_type = 'dynamic-ip-and-port'
-            if src_elem.find('dynamic-ip-and-port/interface-address'):
-                src_xlate_subtype = 'interface-address'
-                src_xlate_interface = src_elem.find('dynamic-ip-and-port/interface-address/interface')
-                src_xlate_address = src_elem.find('dynamic-ip-and-port/interface-address/ip')
-                src_xlate = [src_xlate_type, src_xlate_subtype, src_xlate_interface, src_xlate_address]
-            if src_elem.find('dynamic-ip-and-port/translated-address'):
-                src_xlate_subtype = 'translated-address'
-                src_xlate_members = []
-                for x in src_elem.iterfind('dynamic-ip-and-port/translated-address/member'):
-                    src_xlate_members.append(x.text)
-                src_xlate = [src_xlate_type, src_xlate_subtype, src_xlate_members]
-        if src_elem.find('dynamic-ip'):
-            src_xlate_type = 'dynamic-ip'
-            src_xlate_subtype = ''
-            src_xlate_members = []
-            for x in src_elem.iterfind('dynamic-ip/translated-address/member'):
-                src_xlate_members.append(x.text)
-            src_xlate = [src_xlate_type, src_xlate_subtype, src_xlate_members]
-        if src_elem.find('static-ip'):
-            src_xlate_type = 'static-ip'
-            src_xlate_subtype = ''
-            src_xlate_members = src_elem.find('static-ip/translated-address')
-            src_xlate_bidirectional = src_elem.find('static-ip/bi-directional')
-            src_xlate = [src_xlate_type, src_xlate_subtype, src_xlate_members, src_xlate_bidirectional]
+    # Get the template status
+    dev_template_status = None
 
-    dst_elem = rule.find('dynamic-destination-translation')
-    if dst_elem is not None:
-        dst_xlate_type = 'dynamic-destination-translation'
-        dst_xlate_addr = dst_elem.find('translated-address')
-        dst_xlate_port = dst_elem.find('translated-port')
-        dst_xlate = [dst_xlate_type, dst_xlate_addr, dst_xlate_port]
+    # Get the shared policy status
+    dev_shared_policy = None
 
-    dst_elem = rule.find('destination-translation')
-    if dst_elem is not None:
-        dst_xlate_type = 'destination-translation'
-        dst_xlate_addr = dst_elem.find('translated-address')
-        dst_xlate_port = dst_elem.find('translated-port')
-        dst_xlate = [dst_xlate_type, dst_xlate_addr, dst_xlate_port]
+    # Get certificate status
+    dev_cert_status = None
 
-    # Get the description
-    description = rule.find('description')
+    # Get last commit status
+    dev_last_commit = None
+
+    # Get software version
+    dev_software = dev.find('sw-version')
+
+    # Get apps and threat version
+    dev_apps_threat = dev.find('app-version')
+
+    # Get antivirus version
+    dev_av = dev.find('av-version')
+
+    # Get URL filtering version
+    dev_url = dev.find('url-filtering-version')
+
+    # Get GlobalProtect agent version
+    dev_gp = dev.find('global-protect-client-package-version')
+
+    # Get WildFire version
+    dev_wildfire = dev.find('wildfire-version')
 
     #
-    # Let's write the rule
+    # Write the results
     #
 
-    # Write the rule count
-    f.write(str(rulecount) + ',')
+    # Write the device count
+    f.write(str(devcount) + ',')
 
-    # Write magic here
+    # Write the device name
+    if dev_name is not None:
+        f.write(dev_name.text + ',')
+    else:
+        f.write(dev.get('name') + ',')
 
-    # Finish it!
-    f.write('\n')
+    # Write the VSYS members
+    if len(dev_vsys) > 0:
+        f.write(format_members(dev_vsys) + ',')
+    else:
+        f.write(',')
+
+    # Write the model
+    if dev_model is not None:
+        f.write(dev_model.text + ',')
+    else:
+        f.write(',')
+
+    # Write the tags
+    if len(dev_tags) > 0:
+        f.write(format_members(dev_tags) + ',')
+    else:
+        f.write(',')
+
+    # Write the serial number
+    if dev_serial is not None:
+        f.write(dev_serial.text + ',')
+    else:
+        f.write(',')
+
+    # Write the operational mode
+    if dev_mode is not None:
+        f.write(dev_mode.text + ',')
+    else:
+        f.write(',')
+
+    # Write the IP address
+    if dev_ip is not None:
+        f.write(dev_ip.text + ',')
+    else:
+        f.write(',')
+
+    # Write the variables
+    if dev_vars is not None:
+        f.write(dev_vars.text + ',')
+    else:
+        f.write(',')
+
+    # Write the template
+    if dev_template is not None:
+        f.write(dev_template.text + ',')
+    else:
+        f.write(',')
+
+    # Write the device state
+    if dev_state.text == 'yes':
+        f.write('connected,')
+    elif dev_state.text == 'no':
+        f.write('disconnected,')
+    else:
+        f.write(',')
+
+    # Write the HA status
+    if dev_ha is not None:
+        f.write(dev_ha.text + ',')
+    else:
+        f.write(',')
+
+    # Write the shared policy status
+    if dev_shared_policy is not None:
+        f.write(dev_shared_policy.text + ',')
+    else:
+        f.write(',')
+
+    # Write the template status
+    if dev_template_status is not None:
+        f.write(dev_template_status.text + ',')
+    else:
+        f.write(',')
+
+    # Write the certificate status
+    if dev_cert_status is not None:
+        f.write(dev_cert_status.text + ',')
+    else:
+        f.write(',')
+
+    # Write the last commit status
+    if dev_last_commit is not None:
+        f.write(dev_last_commit.text + ',')
+    else:
+        f.write(',')
+
+    # Write the software version
+    if dev_software is not None:
+        f.write(dev_software.text + ',')
+    else:
+        f.write(',')
+
+    # Write the apps and threats version
+    if dev_apps_threat is not None:
+        f.write(dev_apps_threat.text + ',')
+    else:
+        f.write(',')
+
+    # Write the antivirus version
+    if dev_av is not None:
+        f.write(dev_av.text + ',')
+    else:
+        f.write(',')
+
+    # Write the URL filtering version
+    if dev_url is not None:
+        f.write(dev_url.text + ',')
+    else:
+        f.write(',')
+
+    # Write the GlobalProtect agent version
+    if dev_gp is not None:
+        f.write(dev_gp.text + ',')
+    else:
+        f.write(',')
+
+    # Write the WildFire version
+    if dev_wildfire is not None:
+        f.write(dev_wildfire.text + '\n')
+    else:
+        f.write('\n')
 
 
 def main():
@@ -188,9 +287,8 @@ def main():
     # Process all the devices
     count = 1
 
-    for dev in devices.iter('entry'):
-
-        write_nat_rule(count, dev, outfile)
+    for dev in devices.iterfind('./entry'):
+        write_dev_info(count, dev, outfile)
         count += 1
 
     # Close the output file
