@@ -12,16 +12,18 @@ Utilities to dump PAN-OS information into comma-delimited output.
 - Output to stdout or file
 
 ## Installation
-`$ git clone https://github.com/stealthllama/pandump.git`
-`$ cd pandump`
-`$ virtualenv venv`
-`$ source venv/bin/activate`
-`(venv) $ pip install -r requirements.txt`
+```
+$ git clone https://github.com/stealthllama/pandump.git
+$ cd pandump
+$ virtualenv venv
+$ source venv/bin/activate
+(venv) $ pip install -r requirements.txt
+```
 
 ## Usage
-`$ secdump.py [-h] [-u USERNAME] [-p PASSWORD] [-f FIREWALL] [-t TAG] [-o OUTFILE]`
-`$ natdump.py [-h] [-u USERNAME] [-p PASSWORD] [-f FIREWALL] [-t TAG] [-o OUTFILE]`
-`$ devdump.py [-h] [-u USERNAME] [-p PASSWORD] [-m PANORAMA] [-t TAG] [-o OUTFILE]`
-`$ licdump.py [-h] [-u USERNAME] [-p PASSWORD] [-m PANORAMA] [-t TAG] [-o OUTFILE]`
-
-
+```
+$ secdump.py [-h] [-u USERNAME] [-p PASSWORD] [-f FIREWALL] [-t TAG] [-o OUTFILE]
+$ natdump.py [-h] [-u USERNAME] [-p PASSWORD] [-f FIREWALL] [-t TAG] [-o OUTFILE]
+$ devdump.py [-h] [-u USERNAME] [-p PASSWORD] [-m PANORAMA] [-t TAG] [-o OUTFILE]
+$ licdump.py [-h] [-u USERNAME] [-p PASSWORD] [-m PANORAMA] [-t TAG] [-o OUTFILE]
+```
