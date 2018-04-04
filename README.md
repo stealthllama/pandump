@@ -7,9 +7,10 @@ Utilities to dump PAN-OS information into comma-delimited output.
 - licdump.py: Dump Panorama licensing for managed devices into CSV formatted output
 
 ## Features
-- Support for .panrc tags 
+- Policy output reflects resultant set of pre, local, post, and default rules
+- Support for .panrc tags and API key mapping
 - Interactive password prompt if not supplied in command line arguments
-- Output to stdout or file
+- Displays results to sys.stdout if no output file is specified
 
 ## Installation
 ```
