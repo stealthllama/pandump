@@ -23,8 +23,8 @@ $ source venv/bin/activate
 
 ## Usage
 ```
-$ secdump.py [-h] [-u USERNAME] [-p PASSWORD] [-f FIREWALL] [-t TAG] [-o OUTFILE]
-$ natdump.py [-h] [-u USERNAME] [-p PASSWORD] [-f FIREWALL] [-t TAG] [-o OUTFILE]
-$ devdump.py [-h] [-u USERNAME] [-p PASSWORD] [-m PANORAMA] [-t TAG] [-o OUTFILE]
-$ licdump.py [-h] [-u USERNAME] [-p PASSWORD] [-m PANORAMA] [-t TAG] [-o OUTFILE]
+(venv) $ secdump.py [-h] [-u USERNAME] [-p PASSWORD] [-f FIREWALL] [-t TAG] [-o OUTFILE]
+(venv) $ natdump.py [-h] [-u USERNAME] [-p PASSWORD] [-f FIREWALL] [-t TAG] [-o OUTFILE]
+(venv) $ devdump.py [-h] [-u USERNAME] [-p PASSWORD] [-m PANORAMA] [-t TAG] [-o OUTFILE]
+(venv) $ licdump.py [-h] [-u USERNAME] [-p PASSWORD] [-m PANORAMA] [-t TAG] [-o OUTFILE]
 ```
